@@ -28,8 +28,8 @@ namespace HotelListingAPI.Migrations
                 values: new object[,]
                 {
                     { 1, "Warszawa", 1, "Novotel", 4.5 },
-                    { 2, "Berlin", 2, "Riu Plaza", 4.7000000000000002 },
-                    { 3, "bratislava", 3, "Apollo Hotel", 4.5999999999999996 }
+                    { 2, "Berlin", 2, "Riu Plaza", 4.7 },
+                    { 3, "bratislava", 3, "Apollo Hotel", 4.6 }
                 });
         }
 
