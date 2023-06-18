@@ -1,5 +1,8 @@
 
+using HotelListingAPI.Configuration;
+using HotelListingAPI.Contracts;
 using HotelListingAPI.Data;
+using HotelListingAPI.Repository;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
 
@@ -36,6 +39,11 @@ namespace HotelListingAPI
                 lc.WriteTo.Console()
                 .ReadFrom.Configuration(ctx.Configuration);
             });
+
+            builder.Services.AddAutoMapper(typeof(MapperConfig));
+
+            builder.Services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+            builder.Services.AddScoped<ICountriesRepository, CountriesRepository>();
 
             var app = builder.Build();
 
