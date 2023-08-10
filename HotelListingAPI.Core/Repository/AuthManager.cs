@@ -3,6 +3,8 @@ using HotelListingAPI.Contracts;
 using HotelListingAPI.Data;
 using HotelListingAPI.DTO.User;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -15,15 +17,17 @@ namespace HotelListingAPI.Repository
         private readonly IMapper _mapper;
         private readonly UserManager<ApiUser> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<AuthManager> _logger;
         private ApiUser _user;
 
         private const string _loginProvider = "HotelListingApi";
         private const string _refreshToken = "RefreshToken";
-        public AuthManager(IMapper mapper, UserManager<ApiUser> userManager, IConfiguration configuration)
+        public AuthManager(IMapper mapper, UserManager<ApiUser> userManager, IConfiguration configuration, ILogger<AuthManager> logger)
         {
             _mapper = mapper;
             _userManager = userManager;
             _configuration = configuration;
+            this._logger = logger;
         }
 
         public async Task<string> CreateRefreshToken()
@@ -36,14 +40,17 @@ namespace HotelListingAPI.Repository
 
         public async Task<AuthResponseDto> Login(LoginDto loginDto)
         {
+            _logger.LogInformation($"Login Attempt for ${loginDto.Email}");
             _user = await _userManager.FindByEmailAsync(loginDto.Email);
             var isvalidUser = await _userManager.CheckPasswordAsync(_user, loginDto.Password);
 
             if(_user == null || isvalidUser == false)
             {
+                _logger.LogInformation($"Login Failed for ${loginDto.Email}");
                 return null;
             }
             var token = await GenerateToken();
+            _logger.LogInformation($"Token Generated for ${loginDto.Email}");
             return new AuthResponseDto
             {
                 Token = token,

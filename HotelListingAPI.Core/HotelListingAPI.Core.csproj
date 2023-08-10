@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net7.0</TargetFramework>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="AutoMapper.Extensions.Microsoft.DependencyInjection" Version="12.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="7.0.1" />
+		<PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="7.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\HotelListing.Data\HotelListingAPI.Data.csproj" />
+	</ItemGroup>
+</Project>

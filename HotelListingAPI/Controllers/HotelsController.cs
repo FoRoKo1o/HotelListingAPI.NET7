@@ -10,6 +10,8 @@ using HotelListingAPI.Contracts;
 using AutoMapper;
 using HotelListingAPI.DTO.Hotel;
 using HotelListingAPI.Repository;
+using HotelListingAPI.DTO;
+using HotelListingAPI.DTO.Country;
 
 namespace HotelListingAPI.Controllers
 {
@@ -19,19 +21,29 @@ namespace HotelListingAPI.Controllers
     {
         private readonly IHotelsRepository _hotelsRepository;
         private readonly IMapper _mapper;
+        private readonly ILogger<HotelsController> _logger;
 
-        public HotelsController(IHotelsRepository hotelsRepository, IMapper mapper)
+        public HotelsController(IHotelsRepository hotelsRepository, IMapper mapper, ILogger<HotelsController> logger)
         {
             this._hotelsRepository = hotelsRepository;
             this._mapper = mapper;
+            this._logger = logger;
         }
 
         // GET: api/Hotels
-        [HttpGet]
+        [HttpGet("GetAll")]
         public async Task<ActionResult<IEnumerable<HotelDto>>> GetHotels()
         {
             var hotels = await _hotelsRepository.GetAllAsync();
             return Ok(_mapper.Map<List<HotelDto>>(hotels));
+        }
+
+        // GET: api/Hotels/?StartIndex=0&pagesize=25&PageNumber=1
+        [HttpGet]
+        public async Task<ActionResult<PagedResult<HotelDto>>> GetPagedHotels([FromQuery] QuerryParameters queryParameters)
+        {
+            var pagedHotelsResult = await _hotelsRepository.GetAllAsync<HotelDto>(queryParameters);
+            return Ok(pagedHotelsResult);
         }
 
         // GET: api/Hotels/5
@@ -98,6 +110,7 @@ namespace HotelListingAPI.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteHotel(int id)
         {
+            _logger.LogInformation($"Deleted Hotel with id {id}");
             var hotel = await _hotelsRepository.GetAsync(id);
             if (hotel == null)
             {
