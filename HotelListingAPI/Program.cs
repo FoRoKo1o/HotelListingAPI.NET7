@@ -5,14 +5,18 @@ using HotelListingAPI.Data;
 using HotelListingAPI.Middleware;
 using HotelListingAPI.Repository;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Versioning;
 using Microsoft.AspNetCore.OData;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OData.ModelBuilder;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using System.Text;
+using System.Text.Json;
 
 namespace HotelListingAPI
 {
@@ -130,6 +134,13 @@ namespace HotelListingAPI
                 options.MaximumBodySize = 1024;
                 options.UseCaseSensitivePaths = true;
             });
+            builder.Services.AddHealthChecks()
+                .AddCheck<CustomHealthCheck>("Custom health check", 
+                failureStatus: HealthStatus.Degraded,
+                tags: new[] {"custom"}
+            )
+            .AddSqlServer(connectionString, tags: new[] { "database" })
+            .AddDbContextCheck<HotelListingDbContext>(tags: new[] { "database" });
 
             builder.Services.AddControllers().AddOData(options =>
             {
@@ -145,6 +156,42 @@ namespace HotelListingAPI
                 app.UseSwaggerUI();
             }
             app.UseMiddleware<ExceptionMiddleware>();
+
+            app.MapHealthChecks("/healthcheck", new HealthCheckOptions
+            {
+                Predicate = healthCheck => healthCheck.Tags.Contains("custom"), 
+                ResultStatusCodes =
+                {
+                    [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                    [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+                },
+                ResponseWriter = WriteResponse
+            });
+
+            app.MapHealthChecks("/databaseHealth", new HealthCheckOptions
+            {
+                Predicate = healthCheck => healthCheck.Tags.Contains("database"),
+                ResultStatusCodes =
+                {
+                    [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                    [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+                },
+                ResponseWriter = WriteResponse
+            });
+            app.MapHealthChecks("/Healthz", new HealthCheckOptions
+            {
+                ResultStatusCodes =
+                {
+                    [HealthStatus.Healthy] = StatusCodes.Status200OK,
+                    [HealthStatus.Degraded] = StatusCodes.Status200OK,
+                    [HealthStatus.Unhealthy] = StatusCodes.Status503ServiceUnavailable
+                },
+                ResponseWriter = WriteResponse
+            });
+            app.MapHealthChecks("/health");
+
             app.UseSerilogRequestLogging();
 
             app.UseHttpsRedirection();
@@ -173,6 +220,58 @@ namespace HotelListingAPI
             app.MapControllers();
 
             app.Run();
+        }
+
+        private static Task WriteResponse(HttpContext context, HealthReport report)
+        {
+            context.Response.ContentType = "application/json";
+            var options = new JsonWriterOptions
+            {
+                Indented = true
+            };
+            using var stream = new MemoryStream();
+            using (var jsonWriter = new Utf8JsonWriter(stream, options))
+            {
+                jsonWriter.WriteStartObject();
+                jsonWriter.WriteString("status", report.Status.ToString());
+                jsonWriter.WriteStartObject("results");
+                foreach (var entry in report.Entries)
+                {
+                    jsonWriter.WriteStartObject(entry.Key);
+                    jsonWriter.WriteString("status", entry.Value.Status.ToString());
+                    jsonWriter.WriteString("description", entry.Value.Description);
+                    //jsonWriter.WriteStartObject("data");
+                    jsonWriter.WriteEndObject();
+
+                    foreach(var item in entry.Value.Data)
+                    {
+                        jsonWriter.WriteStartObject(item.Key);
+                        JsonSerializer.Serialize(jsonWriter, item.Value, item.Value?.GetType() ?? typeof(object));
+                    }
+                }
+                jsonWriter.WriteEndObject();
+                jsonWriter.WriteEndObject();
+            }
+            return context.Response.WriteAsync(Encoding.UTF8.GetString(stream.ToArray()));
+        }
+    }
+}
+
+class CustomHealthCheck : IHealthCheck
+{
+    public Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken = default)
+    {
+        var isHealthy = true;
+
+        //custom code to check health
+
+        if (isHealthy)
+        {
+            return Task.FromResult(HealthCheckResult.Healthy("A healthy result."));
+        }
+        else
+        {
+            return Task.FromResult(new HealthCheckResult(context.Registration.FailureStatus, "An unhealthy result."));
         }
     }
 }
